@@ -1,0 +1,9 @@
+# Files
+.DS_Store
+.project
+libuthread/libuthread.a
+
+# Folders
+apps/obj/
+apps/executables/
+libuthread/obj/
