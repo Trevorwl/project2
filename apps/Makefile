@@ -1,5 +1,5 @@
 # Target programs
-programs := uthread_yield.x uthread_hello.x sem_simple.x sem_prime.x sem_count.x queue_tester.x queue_tester_example.x basic_preemption_with_semaphores.x intermediate_preemption_with_semaphores.x
+programs := uthread_yield.x uthread_hello.x sem_simple.x sem_prime.x sem_count.x queue_tester.x queue_tester_example.x basic_preemption_with_semaphores.x intermediate_preemption_with_semaphores.x sem_buffer.x
 
 # User-level thread library
 UTHREADLIB := libuthread
