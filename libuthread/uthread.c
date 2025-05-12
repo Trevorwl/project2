@@ -45,7 +45,26 @@ bool preemptionAllowed = false;
  */
 int tidCount = 0;
 
-void uthread_tcb_destructor(struct uthread_tcb* tcb);
+struct uthread_tcb {
+    uthread_ctx_t context;
+    void *stack;
+
+    /*
+     * Blocked, ready, running exited
+     */
+    int state;
+    int tid;
+};
+
+void uthread_tcb_destructor(struct uthread_tcb* tcb){
+    if(tcb->stack!=NULL){
+        uthread_ctx_destroy_stack(tcb->stack);
+        tcb->stack=NULL;
+    }
+
+    free(tcb);
+}
+
 
 int getTid(struct uthread_tcb* tcb){
     return tcb->tid;
@@ -238,24 +257,5 @@ void uthread_unblock(struct uthread_tcb *uthread)
     queue_enqueue(threadQueue,uthread);
 }
 
-struct uthread_tcb {
-    uthread_ctx_t context;
-    void *stack;
-
-    /*
-     * Blocked, ready, running exited
-     */
-    int state;
-    int tid;
-};
-
-void uthread_tcb_destructor(struct uthread_tcb* tcb){
-    if(tcb->stack!=NULL){
-        uthread_ctx_destroy_stack(tcb->stack);
-        tcb->stack=NULL;
-    }
-
-    free(tcb);
-}
 
 
