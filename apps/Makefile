@@ -99,8 +99,8 @@ bufferTest:
 	rm -f bufferOutput.txt
 	touch bufferOutput.txt
 	./$(EXECDIR)/sem_buffer.x > bufferOutput.txt 2>&1
-	cat bufferOutput.txt
-	rm -f bufferOutput.txt
+	#cat bufferOutput.txt
+	#rm -f bufferOutput.txt
 	
 countTest:
 	./$(EXECDIR)/sem_count.x
@@ -109,14 +109,18 @@ primeTest:
 	rm -f primeOutput.txt
 	touch primeOutput.txt
 	./$(EXECDIR)/sem_prime.x > primeOutput.txt 2>&1
-	cat primeOutput.txt
-	rm -f primeOutput.txt
+	#cat primeOutput.txt
+	#rm -f primeOutput.txt
 
 basicPreemptSem:
-	./$(EXECDIR)/basic_preemption_with_semaphores.x
+	#rm -f basicPSem.txt
+	#touch basicPSem.txt
+	./$(EXECDIR)/basic_preemption_with_semaphores.x  
+        #> basicPSem.txt 2>&1
 
 interPreemptSem:
+	#rm -f interPSem.txt
+	#touch interPSem.txt
 	./$(EXECDIR)/intermediate_preemption_with_semaphores.x
-
-
+        # > interPSem.txt 2>&1
 

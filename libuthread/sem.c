@@ -4,12 +4,14 @@
 #include "private.h"
 #include "sem.h"
 
+
 ///////removed 4 lines, added 2 to have compatibility with uthread.c
 
 struct semaphore {
     size_t count;
     queue_t wait_queue;
 };
+
 
 sem_t sem_create(size_t count)
 {

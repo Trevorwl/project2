@@ -2,6 +2,9 @@
 .DS_Store
 .project
 *.txt
+*.d
+*.o
+*.x
 libuthread/libuthread.a
 /Makefile
 /*.c
