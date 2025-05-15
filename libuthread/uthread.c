@@ -123,10 +123,13 @@ int uthread_create(uthread_func_t func, void *arg)
     }
 
     tcb->state=READY;
-    tcb->tid=tidCount++;
 
     preempt_disable();
+
+    tcb->tid=tidCount++;
+
     queue_enqueue(threadQueue,tcb);
+
     preempt_enable();
 
     return 0;

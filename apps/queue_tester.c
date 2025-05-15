@@ -30,8 +30,28 @@ void print_or_delete(queue_t queue, void*data){
 /////////////////////////tester functions
 void test_destroy(){
     printf("--test_destroy--\n");
+
     queue_t q = queue_create();
-    int ret = queue_destroy(q);
+    int val=1;
+    queue_enqueue(q,&val);
+
+    int ret = queue_destroy(NULL);
+
+    if(ret==0){
+        printf("fail\n");
+        return;
+    }
+
+    ret = queue_destroy(q);
+
+    if(ret==0){
+        printf("fail\n");
+        return;
+    }
+
+    queue_delete(q,&val);
+
+    ret = queue_destroy(q);
 
     if(ret==-1){
         printf("fail\n");
@@ -53,7 +73,7 @@ void test_enqueue(){
            printf("fail\n");
            return;
        }
-   }
+    }
 
     printf("pass\n");
 }
@@ -72,7 +92,6 @@ void test_iteration_robustness(){
 
     queue_iterate(q,print_or_delete);
     printf("pass if every number 0-9 except 3 or 6 is printed\n");
-    queue_destroy(q);
 }
 
 //prints numbers except 1,6,3

@@ -43,6 +43,8 @@ void busy_wait(){
 void reader(void* arg){
     struct buffer* b = (struct buffer*)arg;
 
+    unsigned int seed = (unsigned int)time(0);
+
     for(int j = 0; j < 30; j++){
         sem_down(b->readerSem);
 
@@ -52,7 +54,7 @@ void reader(void* arg){
 
         sem_up(b->writerSem);
 
-        if(rand() % 10 == 0){
+        if(rand_r(&seed) % 10 == 0){
             busy_wait();
         }
     }
@@ -60,6 +62,8 @@ void reader(void* arg){
 
 void writer(void* arg){
     struct buffer* b=(struct buffer*)arg;
+
+    unsigned int seed = (unsigned int)time(0);
 
     for(int j = 0; j < 30; j++){
         sem_down(b->writerSem);
@@ -69,7 +73,7 @@ void writer(void* arg){
 
         sem_up(b->readerSem);
 
-        if(rand() % 10 == 0){
+        if(rand_r(&seed) % 10 == 0){
             busy_wait();
         }
     }
@@ -82,7 +86,6 @@ void init(void* arg){
 
 int main(){
     struct buffer b;
-    srand(time(0));
 
     b.readPos=0;
     b.writePos=0;
