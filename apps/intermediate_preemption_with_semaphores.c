@@ -45,10 +45,12 @@ void reader(void* arg){
 
     for(int j = 0; j < 30; j++){
         sem_down(b->readerSem);
-        sem_up(b->writerSem);
+
 
         printf("reading at pos %d\n",b->readPos);
         b->readPos = (b->readPos + 1) % MAXCHAR;
+
+        sem_up(b->writerSem);
 
         if(rand() % 10 == 0){
             busy_wait();
@@ -88,7 +90,7 @@ int main(){
     b.writerSem=sem_create(MAXCHAR);
     b.readerSem=sem_create(0);
 
-    show_preempted_thread_debug=true;
+    enableAllMessages();
 
     uthread_run(true,init,&b);
 }

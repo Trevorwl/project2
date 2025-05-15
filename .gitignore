@@ -1,7 +1,11 @@
 # Files
 .DS_Store
 .project
+*.txt
 libuthread/libuthread.a
+/Makefile
+/*.c
+/*.h
 
 # Folders
 apps/obj/

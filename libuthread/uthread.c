@@ -65,7 +65,6 @@ void uthread_tcb_destructor(struct uthread_tcb* tcb){
     free(tcb);
 }
 
-
 int getTid(struct uthread_tcb* tcb){
     return tcb->tid;
 }
@@ -99,8 +98,8 @@ void uthread_exit(void)
 {
     preempt_disable();
 
-	currentTcb->state=EXITED;
-	uthread_ctx_switch(&currentTcb->context, &mainTcb->context);
+    currentTcb->state=EXITED;
+    uthread_ctx_switch(&currentTcb->context, &mainTcb->context);
 }
 
 int uthread_create(uthread_func_t func, void *arg)
@@ -256,6 +255,5 @@ void uthread_unblock(struct uthread_tcb *uthread)
     uthread->state=READY;
     queue_enqueue(threadQueue,uthread);
 }
-
 
 

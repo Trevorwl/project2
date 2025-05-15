@@ -1,40 +1,25 @@
 #include <stddef.h>
 #include <stdlib.h>
-
 #include "queue.h"
 #include "private.h"
 #include "sem.h"
-#include "uthread.h"
-#include "Constants.h"
+
+///////removed 4 lines, added 2 to have compatibility with uthread.c
 
 struct semaphore {
-    /*
-     * Resource count
-     */
-	int count;
-
-	/*
-	 * Waiting queue for threads blocked on
-	 * semaphore. Waiting threads go here instead
-	 * of scheduler, and are put on sheduler after
-	 * waking up.
-	 */
-	queue_t blockedThreads;
+    size_t count;
+    queue_t wait_queue;
 };
 
 sem_t sem_create(size_t count)
 {
-    sem_t sem=(sem_t)calloc(1,sizeof(struct semaphore));
-
-    if(!sem){
+    sem_t sem = calloc(1,sizeof(struct semaphore));
+    if (!sem)
         return NULL;
-    }
 
-    sem->count=count;
-
-    sem->blockedThreads=queue_create();
-
-    if(!sem->blockedThreads){
+    sem->count = count;
+    sem->wait_queue = queue_create();
+    if (!sem->wait_queue) {
         free(sem);
         return NULL;
     }
@@ -44,91 +29,67 @@ sem_t sem_create(size_t count)
 
 int sem_destroy(sem_t sem)
 {
-    preempt_disable();
+    preempt_disable();/////////////////////////////////maybe we add:
+    if (!sem || queue_length(sem->wait_queue) > 0){  //ensure sem's queue is accessed uninterrupted
 
-    if(sem==NULL ||queue_length(sem->blockedThreads) > 0){
-        preempt_enable();
+        preempt_enable();/////////////////////////////added
         return -1;
     }
 
-    queue_destroy(sem->blockedThreads);
-    sem->blockedThreads=NULL;
+    queue_destroy(sem->wait_queue);
     free(sem);
-
-    preempt_enable();
-
+    preempt_enable();/////////////////////////////////added
     return 0;
 }
 
 int sem_down(sem_t sem)
 {
-    if(sem==NULL){
+    if (!sem)
         return -1;
-    }
 
-    /*
-     * Disable preemption
-     * so that this thread doesnt get interrupted,
-     * and other threads inappropriately access sem->count
-     * and queue_enque
-     */
     preempt_disable();
+    if (sem->count == 0) {
+        struct uthread_tcb *self = uthread_current();
+        queue_enqueue(sem->wait_queue, self);
+//        preempt_enable();   ///////////////////////////////////maybe we remove:
+        uthread_block();                                      // i thought maybe be we leave preempt disabled
+                                                              // to reenter scheduler on 1 disable call
+//        // After unblocking, recheck availability
+//        return sem_down(sem);  /////////////////////////////////maybe we remove:
+                                                                //in sem_up i noticed the code doesnt
+                                                                //increment sem->count after unblock,
+                                                                //which leaves sem->count=0. This means
+                                                                //other threads will block and this
+                                                                //thread has the sem.
+                                                                //
+                                                                //I think its actually good we
+                                                                //keep sem->count=0 because
+                                                                //we guarantee this thread
+                                                                //doesnt starve.
 
-    /*
-     * if 0, go on semaphores queue and wait for a thread
-     * to call sem_up to wake it.
-     */
-    if(sem->count==0){
 
-        queue_enqueue(sem->blockedThreads,uthread_current());
-
-        uthread_block();
-
-
-    } else{
-
-        //thread is allowed into critical section, decrement availability
-        (sem->count)--;
-
+    } else { //////////////////////////////////////maybe we add:
+                                                 //if we are unblocked, we might leave sem->count=0
+                                                 //to block other threads.
+        (sem->count)--;                          //if we never blocked, we decrement sem->count.
     }
 
     preempt_enable();
-
     return 0;
 }
 
 int sem_up(sem_t sem)
 {
-    if(sem==NULL){
+    if (!sem)
         return -1;
-    }
 
-
-    /*
-     * Disable preemption
-     * so that this thread doesnt get interrupted,
-     * and other threads inappropriately access sem->blockedThreads
-     * and queue functions
-     */
     preempt_disable();
-
-    //wake next thread, dont increment availability(we want this thread to have sem first)
-    if(queue_length(sem->blockedThreads)>0){
-        struct uthread_tcb* wakingThread;
-
-        queue_dequeue(sem->blockedThreads,(void**)&wakingThread);
-
-
-        uthread_unblock(wakingThread);
-
+    struct uthread_tcb *next;
+    if (queue_dequeue(sem->wait_queue, (void**)&next) == 0) {
+        uthread_unblock(next);
     } else {
-
-        //no threads to wake, increment availability
-        (sem->count)++;
+        sem->count++;
     }
-
     preempt_enable();
-
     return 0;
 }
-

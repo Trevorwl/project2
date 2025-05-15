@@ -1,234 +1,130 @@
 #include <stdint.h>
 #include <stdlib.h>
-#include <string.h>
-#include <stdio.h>
 
 #include "queue.h"
 
-struct node {
-    void* data;
-    struct node* prev;
-    struct node* next;
-};
-
+typedef struct node {
+    void *data;
+    struct node *next;
+} node_t;
 
 struct queue {
-    struct node* head;
-    struct node* tail;
-    int size;
+    node_t *head;
+    node_t *tail;
+    int length;
 };
 
 queue_t queue_create(void)
 {
-    queue_t queue=(queue_t)calloc(1,sizeof(struct queue));
-    if(!queue){
+    queue_t q = calloc(1,sizeof(struct queue));
+    if (!q)
         return NULL;
-    }
 
-    queue->head=NULL;
-    queue->tail=NULL;
-    queue->size=0;
-
-    return queue;
+    q->head = q->tail = NULL;
+    q->length = 0;
+    return q;
 }
 
 int queue_destroy(queue_t queue)
 {
-    if(queue==NULL || queue->size>0){
+    if (!queue || queue->length > 0)
         return -1;
-    }
 
     free(queue);
-
     return 0;
-}
-
-static void* removeHead(queue_t queue){
-    if(queue->size==0){
-        return NULL;
-    }
-
-    struct node* oldHead = queue->head;
-
-    void* data = oldHead->data;
-
-    oldHead->data=NULL;
-
-    if(queue->size==1){
-        free(oldHead);
-
-        queue->head = queue->tail = NULL;
-        queue->size=0;
-
-        return data;
-    }
-
-    struct node* newHead = oldHead->next;
-
-    oldHead->next = NULL;
-
-    free(oldHead);
-
-    newHead->prev = NULL;
-
-    queue->head=newHead;
-
-    (queue->size)--;
-
-    return data;
-}
-
-void* removeTail(queue_t queue){
-     if(queue->size==0){
-        return NULL;
-     }
-
-     struct node* oldTail = queue->tail;
-
-     void* data = oldTail->data;
-
-     oldTail->data = NULL;
-
-     if(queue->size == 1){
-
-         free(oldTail);
-
-         queue->head = queue->tail = NULL;
-         queue->size = 0;
-
-         return data;
-     }
-
-     struct node* newTail = oldTail->prev;
-
-     oldTail->prev=NULL;
-
-     free(oldTail);
-
-     newTail->next=NULL;
-
-     queue->tail=newTail;
-
-     (queue->size)--;
-
-     return data;
 }
 
 int queue_enqueue(queue_t queue, void *data)
 {
-    if(queue==NULL || data==NULL){
+    if (!queue || !data)
         return -1;
-    }
 
-    struct node* newNode=(struct node*)calloc(1,sizeof(struct node));
-
-    if(!newNode){
+    node_t *new_node = calloc(1,sizeof(node_t));
+    if (!new_node)
         return -1;
+
+    new_node->data = data;
+    new_node->next = NULL;
+
+    if (queue->length == 0){
+        queue->head = queue->tail = new_node;
+    }else {
+        queue->tail->next = new_node;
+        queue->tail = new_node;
     }
 
-    newNode->data=data;
-    newNode->prev=NULL;
-    newNode->next=NULL;
-
-    if(queue->size==0){
-        queue->head = queue->tail = newNode;
-        (queue->size)++;
-        return 0;
-    }
-
-
-    queue->tail->next=newNode;
-    newNode->prev=queue->tail;
-    queue->tail=newNode;
-
-    (queue->size)++;
-
+    (queue->length)++;
     return 0;
 }
 
 int queue_dequeue(queue_t queue, void **data)
 {
-    if(queue==NULL || data==NULL || queue->size==0){
+    if (!queue || !data || queue->length == 0)
         return -1;
-    }
 
-    *data = removeHead(queue);
+    node_t *old_head = queue->head;
+    *data = old_head->data;
 
+    queue->head = old_head->next;
+    if (!queue->head)
+        queue->tail = NULL;
+
+    free(old_head);
+    (queue->length)--;
     return 0;
 }
 
-
 int queue_delete(queue_t queue, void *data)
 {
-    if(queue==NULL || data==NULL || queue->size == 0){
+    if (!queue || !data || queue->length == 0)
         return -1;
-    }
 
-    struct node* currentNode = queue->head;
+    node_t *curr = queue->head;
+    node_t *prev = NULL;
 
-    do{
-        if(currentNode->data == data){
+    while (curr) {
+        if (curr->data == data) {
+            if (prev)
+                prev->next = curr->next;
+            else
+                queue->head = curr->next;
 
-            if(currentNode==queue->head){
-                removeHead(queue);
-                return 0;
-            }
+            if (curr == queue->tail)
+                queue->tail = prev;
 
-            if(currentNode==queue->tail){
-                removeTail(queue);
-                return 0;
-            }
-
-            struct node* prevNode = currentNode->prev;
-            struct node* nextNode = currentNode->next;
-
-            currentNode->data=NULL;
-            currentNode->prev=NULL;
-            currentNode->next=NULL;
-
-            free(currentNode);
-
-            prevNode->next=nextNode;
-            nextNode->prev=prevNode;
-
-            (queue->size)--;
-
+            free(curr);
+            (queue->length)--;
             return 0;
         }
 
-        currentNode=currentNode->next;
-
-    } while(currentNode!=NULL);
+        prev = curr;
+        curr = curr->next;
+    }
 
     return -1;
-
 }
 
 int queue_iterate(queue_t queue, queue_func_t func)
 {
-    if(queue==NULL || func==NULL){
+    if (!queue || !func)
         return -1;
-    }
 
-    struct node* currentNode=queue->head;
-
-    while(currentNode!=NULL){
-        struct node* next = currentNode->next;
-
-        func(queue,currentNode->data);
-
-        currentNode=next;
+    node_t *curr = queue->head;
+    while (curr) {
+        node_t *next = curr->next;  // store next in case `curr` gets deleted
+        func(queue, curr->data);
+        curr = next;
     }
 
     return 0;
 }
 
+
 int queue_length(queue_t queue)
 {
-    if(queue==NULL){
+    if (!queue)
         return -1;
-    }
 
-    return queue->size;
+    return queue->length;
 }
 

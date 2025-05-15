@@ -2,172 +2,88 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-#include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/time.h>
-#include <unistd.h>
+#include <string.h>
 
 #include "private.h"
 #include "uthread.h"
 #include "settings.h"
 
-/*
- * Frequency of preemption
- */
 #define HZ 100
 
-/*
- * Holds the action for SIGVTALRM before
- * scheduler is run. This is restored when
- * schduler is done (preempt_stop())
- */
-struct sigaction oldTimerAction;
+static struct sigaction old_sa;
+static struct itimerval old_timer;
+static bool preempt_enabled = false;
+static sigset_t Sigset;
 
-/*
- * Timer interval before scheduler was run.
- */
-struct itimerval oldTimerInterval;
+sigset_t old_mask;//////////////////////added
 
-/*
- * Signal mask of process before scheduler was run.
- */
-sigset_t oldMask;
+extern int getTid(struct uthread_tcb* tcb);///////////added
 
-/*
- * Set to true by scheduler if user wants preemption, false otherwise.
- *
- * Prevents preemption logic from being executed if preemptionAllowed=false.
- */
-extern bool preemptionAllowed;
-
-extern int getTid(struct uthread_tcb* tcb);
-
-/*
- * This is called when dispatched thread is interrupted.
- *
- * We yield back to the scheduler.
- *
- */
-void timerHandler(int signal){
-
-    if(show_preempted_thread_debug==true){
+static void alarm_handler(int signum)
+{
+    if(show_preempted_thread_debug==true){///////////////////////////added for debug
         printf("thread %d preempted\n",getTid(uthread_current()));
     }
 
+    (void)signum;
     uthread_yield();
 }
 
-/*
-* Unblock SIGVTARLM to allow threads to be interrupted
-* by kernel, which is has been constantly sending SIGVTALRM.
-*/
-void preempt_disable(void)
-{
-    if(preemptionAllowed==false){
-        return;
-    }
-
-    sigset_t blockAlarmMask;
-
-    sigemptyset(&blockAlarmMask);
-    sigaddset(&blockAlarmMask, SIGVTALRM);
-    sigprocmask(SIG_BLOCK, &blockAlarmMask, NULL);
-}
-
-/*
-* Block SIGVTARLM to prevent threads from being interrupted by kernel
-* by kernel, which will continue to send SIGVTALRMM.
-*/
-void preempt_enable(void)
-{
-    if(preemptionAllowed==false){
-        return;
-    }
-
-    sigset_t unblockAlarmMask;
-
-    sigemptyset(&unblockAlarmMask);
-    sigaddset(&unblockAlarmMask, SIGVTALRM);
-    sigprocmask(SIG_UNBLOCK, &unblockAlarmMask, NULL);
-}
-
-
 void preempt_start(bool preempt)
 {
-    if(preempt==false){
+    if (!preempt)
         return;
-    }
 
-    /*
-     * Save old process signal mask
-     */
-    sigprocmask(SIG_SETMASK, NULL, &oldMask);
+    sigprocmask(SIG_SETMASK, NULL, &old_mask);//////////////added
 
-    struct sigaction newTimerAction;
+    preempt_enabled = true;
 
+    sigemptyset(&Sigset);
+    sigaddset(&Sigset, SIGVTALRM);
 
-    newTimerAction.sa_handler=timerHandler;
-    sigemptyset(&newTimerAction.sa_mask);
+    struct sigaction sa;
+    sa.sa_handler = alarm_handler;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = SA_RESTART;////////////////////////added
 
-    /*
-     * Flag is set for timer action so that
-     * i/o syscalls are restarted if thread is interrupted by timer.
-     */
-    newTimerAction.sa_flags=SA_RESTART;
+    sigaction(SIGVTALRM, &sa, &old_sa);
 
-    /*
-     * Save old sigaction and set new one
-     */
-    sigaction(SIGVTALRM,&newTimerAction,&oldTimerAction);
+    struct itimerval timer;
 
-    struct itimerval newTimerInterval;
-
-    memset(&newTimerInterval, 0, sizeof(newTimerInterval));
-
-    /*
-     * Set delay for timer
-     */
-    newTimerInterval.it_value.tv_sec = 0;
-    newTimerInterval.it_value.tv_usec = 1000000 / HZ;
-
-    /*
-     * Set interval for timer
-     */
-    newTimerInterval.it_interval.tv_sec = 0;
-    newTimerInterval.it_interval.tv_usec = 1000000 / HZ;
-
-    /*
-     * disable preemption so scheduler can run
-     */
-    preempt_disable();
+    memset(&timer, 0, sizeof(timer));///////////////////added
 
 
-    /*
-     * Set new timer, save old one
-     */
-    setitimer(ITIMER_VIRTUAL, &newTimerInterval, &oldTimerInterval);
+    timer.it_interval.tv_sec = 0;
+    timer.it_interval.tv_usec = 1000000 / HZ;
+    timer.it_value = timer.it_interval;
+
+    preempt_disable();/////////////////////////////////added
+
+    setitimer(ITIMER_VIRTUAL, &timer, &old_timer);
 }
 
 void preempt_stop(void)
 {
-    if(preemptionAllowed==false){
+    if (!preempt_enabled)
         return;
-    }
 
-    /*
-     * Restore previous process mask
-     */
-    sigprocmask(SIG_SETMASK, &oldMask, NULL);
+    sigprocmask(SIG_SETMASK, &old_mask, NULL);///////////////added
 
-    /*
-     * Restore old timer action
-     */
-    sigaction(SIGVTALRM,&oldTimerAction,NULL);
-
-    /*
-     * Restore old timer
-     */
-    setitimer(ITIMER_VIRTUAL, &oldTimerInterval, NULL);
+    setitimer(ITIMER_VIRTUAL, &old_timer, NULL);
+    sigaction(SIGVTALRM, &old_sa, NULL);
 }
 
+void preempt_disable(void)
+{
+    if (preempt_enabled)
+        sigprocmask(SIG_BLOCK, &Sigset, NULL);
+}
+
+void preempt_enable(void)
+{
+    if (preempt_enabled)
+        sigprocmask(SIG_UNBLOCK, &Sigset, NULL);
+}
