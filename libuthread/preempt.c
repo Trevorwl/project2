@@ -18,13 +18,13 @@ static struct itimerval old_timer;
 static bool preempt_enabled = false;
 static sigset_t Sigset;
 
-sigset_t old_mask;//////////////////////added
+sigset_t old_mask;
 
-extern int getTid(struct uthread_tcb* tcb);///////////added
+extern int getTid(struct uthread_tcb* tcb);
 
 static void alarm_handler(int signum)
 {
-    if(show_preempted_thread_debug==true){///////////////////////////added for debug
+    if(show_preempted_thread_debug==true){
         printf("thread %d preempted\n",getTid(uthread_current()));
     }
 
@@ -37,7 +37,7 @@ void preempt_start(bool preempt)
     if (!preempt)
         return;
 
-    sigprocmask(SIG_SETMASK, NULL, &old_mask);//////////////added
+    sigprocmask(SIG_SETMASK, NULL, &old_mask);
 
     preempt_enabled = true;
 
@@ -47,20 +47,20 @@ void preempt_start(bool preempt)
     struct sigaction sa;
     sa.sa_handler = alarm_handler;
     sigemptyset(&sa.sa_mask);
-    sa.sa_flags = SA_RESTART;////////////////////////added
+    sa.sa_flags = SA_RESTART;
 
     sigaction(SIGVTALRM, &sa, &old_sa);
 
     struct itimerval timer;
 
-    memset(&timer, 0, sizeof(timer));///////////////////added
+    memset(&timer, 0, sizeof(timer));
 
 
     timer.it_interval.tv_sec = 0;
     timer.it_interval.tv_usec = 1000000 / HZ;
     timer.it_value = timer.it_interval;
 
-    preempt_disable();/////////////////////////////////added
+    preempt_disable();
 
     setitimer(ITIMER_VIRTUAL, &timer, &old_timer);
 }
@@ -70,7 +70,7 @@ void preempt_stop(void)
     if (!preempt_enabled)
         return;
 
-    sigprocmask(SIG_SETMASK, &old_mask, NULL);///////////////added
+    sigprocmask(SIG_SETMASK, &old_mask, NULL);
 
     setitimer(ITIMER_VIRTUAL, &old_timer, NULL);
     sigaction(SIGVTALRM, &old_sa, NULL);

@@ -6,15 +6,8 @@ UTHREADLIB := libuthread
 UTHREADPATH := ../$(UTHREADLIB)
 libuthread := $(UTHREADPATH)/$(UTHREADLIB).a
 
-# Object and executable directories
-OBJDIR := obj
-EXECDIR := executables
-
-# Executables paths
-execs := $(patsubst %.x,$(EXECDIR)/%.x,$(programs))
-
 # Default rule
-all: $(execs)
+all: $(programs)
 
 # Avoid builtin rules and variables
 MAKEFLAGS += -rR
@@ -34,30 +27,22 @@ CC	= gcc
 # General gcc options
 CFLAGS	:= -Wall -Wextra -Werror -D_XOPEN_SOURCE=700 -Wno-deprecated-declarations
 CFLAGS	+= -pipe
-
 ## Debug flag
 ifneq ($(D),1)
 CFLAGS	+= -O2
 else
 CFLAGS	+= -g
 endif
-
 ## Include path
 CFLAGS 	+= -I$(UTHREADPATH)
-
 ## Dependency generation
 CFLAGS	+= -MMD
 
 # Linker options
 LDFLAGS := -L$(UTHREADPATH) -luthread
 
-
-# Ensure directories exist
-$(shell mkdir -p $(OBJDIR) $(EXECDIR))
-
 # Application objects to compile
-objs := $(patsubst %.x,$(OBJDIR)/%.o,$(programs))
-
+objs := $(patsubst %.x,%.o,$(programs))
 
 # Include dependencies
 deps := $(patsubst %.o,%.d,$(objs))
@@ -65,62 +50,26 @@ deps := $(patsubst %.o,%.d,$(objs))
 
 # Rule for libuthread.a
 $(libuthread): FORCE
-	@echo \"MAKE\t$@\"
+	@echo "MAKE	$@"
 	$(Q)$(MAKE) V=$(V) D=$(D) -C $(UTHREADPATH)
 
 # Generic rule for linking final applications
-$(EXECDIR)/%.x: $(OBJDIR)/%.o $(libuthread)
-	@echo \"LD\t$@\"
+%.x: %.o $(libuthread)
+	@echo "LD	$@"
 	$(Q)$(CC) -o $@ $< $(LDFLAGS)
 
 # Generic rule for compiling objects
-$(OBJDIR)/%.o: %.c
-	@echo \"CC\t$@\"
+%.o: %.c
+	@echo "CC	$@"
 	$(Q)$(CC) $(CFLAGS) -c -o $@ $<
 
 # Cleaning rule
 clean: FORCE
-	@echo \"CLEAN\t$(CUR_PWD)\"
+	@echo "CLEAN	$(CUR_PWD)"
 	$(Q)$(MAKE) V=$(V) D=$(D) -C $(UTHREADPATH) clean
-	$(Q)rm -rf $(OBJDIR) $(EXECDIR)
+	$(Q)rm -rf $(objs) $(deps) $(programs)
 
 # Keep object files around
-.PRECIOUS: $(OBJDIR)/%.o
+.PRECIOUS: %.o
 .PHONY: FORCE
 FORCE:
-
-queueTest:
-	./$(EXECDIR)/queue_tester.x
-
-yieldTest:
-	./$(EXECDIR)/uthread_yield.x
-
-bufferTest:
-	rm -f bufferOutput.txt
-	touch bufferOutput.txt
-	./$(EXECDIR)/sem_buffer.x > bufferOutput.txt 2>&1
-	#cat bufferOutput.txt
-	#rm -f bufferOutput.txt
-	
-countTest:
-	./$(EXECDIR)/sem_count.x
-	
-primeTest:
-	rm -f primeOutput.txt
-	touch primeOutput.txt
-	./$(EXECDIR)/sem_prime.x > primeOutput.txt 2>&1
-	#cat primeOutput.txt
-	#rm -f primeOutput.txt
-
-basicPreemptSem:
-	#rm -f basicPSem.txt
-	#touch basicPSem.txt
-	./$(EXECDIR)/basic_preemption_with_semaphores.x  
-        #> basicPSem.txt 2>&1
-
-interPreemptSem:
-	#rm -f interPSem.txt
-	#touch interPSem.txt
-	./$(EXECDIR)/intermediate_preemption_with_semaphores.x
-        # > interPSem.txt 2>&1
-
